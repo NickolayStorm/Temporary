@@ -1,0 +1,5 @@
+.idea
+__pycache__/*
+Server/__pycache__/*
+Server/api/__pycache__/*
+Server/database/__pycache__/*
