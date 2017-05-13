@@ -3,6 +3,7 @@ from sqlalchemy.orm import Load
 
 from Server.api.view import ok, error
 from Server.database.orm import User, Request, Status
+from Server.post import post
 
 bots = Blueprint('bot', __name__)
 
@@ -15,6 +16,10 @@ def create_user():
     db.session.commit()
     db.session.refresh(user)
     print("Created user id(%s)" % user.id)
+    email, pas = post.create_mailbox(user.id)
+    user.email = email
+    user.password = pas
+    db.session.commit()
     dct = {
         "id": user.id
     }
@@ -93,7 +98,7 @@ def update_request(request_id):
     if req:
         args = request.form
         # TODO: args
-        coordinates = args["cooridnate"]
+        coordinates = args["coordinate"]
         # TODO: Find out category
         # category_id = args["category"]
         return ok()
@@ -125,9 +130,20 @@ def action_request(request_id):
                 }
             })
         else:
-            # TODO: make_request
+            """
+             TODO: create all stuff for request
+                   and return captcha link
+            """
+
             return ok()
     return error("Request %s does not exist" % request_id)
+
+
+@bots.route("/request/<request_id>/captcha/<transcript>")
+def get_captcha_transcript(transcript):
+    # TODO: make request
+    # TODO: return not ok
+    return ok()
 
 
 @bots.errorhandler(404)

@@ -17,6 +17,8 @@ app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 db = SQLAlchemy(app)
 app.config['database'] = db
 
+app.config["POST_ADDRESS"] = "http://127.0.0.1:8080"
+
 
 login_manager = LoginManager()
 login_manager.init_app(app)
