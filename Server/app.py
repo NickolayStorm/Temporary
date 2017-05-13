@@ -3,7 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from Server.api.api import api
+from Server.api.bots import bots
 
 app = Flask(__name__)
 
@@ -21,7 +21,7 @@ app.config['database'] = db
 login_manager = LoginManager()
 login_manager.init_app(app)
 
-app.register_blueprint(api, url_prefix="/api")
+app.register_blueprint(bots, url_prefix="/api/bot")
 
 
 def main():
