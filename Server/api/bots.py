@@ -26,6 +26,24 @@ def create_user():
     return ok(dct)
 
 
+@bots.route('/get/user/<id>', methods=['POST'])
+def create_user(id):
+    db = current_app.config["database"]
+    query = db.query.select(User).\
+        filter(User.id == id)
+    user = query.user
+    if user:
+        dct = {
+            "id": user.id,
+            "firstname": user.firstname,
+            "surname": user.surname,
+            "patronymic": user.patronymic
+        }
+        return ok(dct)
+    else:
+        return error("User id %s not found" % id)
+
+
 @bots.route("/user/<user_id>/firstname/<firstname>/",
             methods=['POST'])
 def change_user_firstname(user_id, firstname):

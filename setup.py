@@ -8,6 +8,7 @@ setup(
         'flask',
         'sqlalchemy',
         'flask-sqlalchemy',
-        'requests'
+        'requests',
+        'lxml'
     ],
 )
