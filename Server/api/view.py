@@ -15,5 +15,5 @@ def error(data=None):
         "status": "error"
     }
     if data != None:
-        resp.update("data", data)
+        resp["data"] = data
     return jsonify(resp)

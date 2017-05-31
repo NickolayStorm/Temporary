@@ -13,32 +13,36 @@ bots = Blueprint('bot', __name__)
 
 @bots.route('/create/user', methods=['POST'])
 def create_user():
+    print("/create/user")
     db = current_app.config["database"]
     user = User()
     db.session.add(user)
     db.session.commit()
     db.session.refresh(user)
+    print("refreshed")
     print("Created user id(%s)" % user.id)
-    email, pas = post.create_mailbox(user.id)
-    user.email = email
-    user.password = pas
+    # email, pas = post.create_mailbox(user.id)
+    # user.email = email
+    # user.password = pas
+    # print("mailbox created")
     db.session.commit()
     dct = {
         "id": user.id
     }
+    print("commited")
     return ok(dct)
 
 
 @bots.route('/get/user/<id>', methods=['POST'])
 def get_user(id):
     db = current_app.config["database"]
-    query = db.query.select(User).\
+    query = db.session.query(User).\
         filter(User.id == id)
-    user = query.user
+    user = query.first()
     if user:
         dct = {
             "id": user.id,
-            "firstname": user.firstname,
+            "firstname": user.name,
             "surname": user.surname,
             "patronymic": user.patronymic
         }
@@ -47,25 +51,16 @@ def get_user(id):
         return error("User id %s not found" % id)
 
 
-@bots.route("/user/<int:user_id>/firstname/<firstname>/",
+@bots.route("/user/<int:user_id>/fnp/",
             methods=['POST'])
-def change_user_firstname(user_id, firstname):
+def change_user_firstname(user_id):
     db = current_app.config["database"]
     user = db.session.query(User).filter(User.id == user_id).first()
     if user:
-        user.name = firstname
-        db.session.commit()
-        return ok()
-    return error()
-
-
-@bots.route("/user/<int:user_id>/surname/<surname>/",
-            methods=['POST'])
-def change_user_lastname(user_id, surname):
-    db = current_app.config["database"]
-    user = db.session.query(User).filter(User.id == user_id).first()
-    if user:
-        user.lastname = surname
+        data = request.form
+        user.name = data["firstname"]
+        user.surname = data["name"]
+        user.patronymic = data["patronymic"]
         db.session.commit()
         return ok()
     return error()
@@ -77,9 +72,10 @@ def get_list_requests(user_id):
     # TODO: Не работает (ошибка в join)
     reqs = db.session.query(Request, RequestStatus).\
         filter(Request.user_id == user_id).\
-        join(Request.request_status_id == RequestStatus.id).\
+        join(RequestStatus, Request.request_status_id == RequestStatus.id).\
         options(
             Load(Request).load_only(
+                "id",
                 "date",
                 "telegraph"
             ),
@@ -90,6 +86,7 @@ def get_list_requests(user_id):
     res = []
     for req, status in reqs:
         dct = {
+            "id": Request.id,
             "date": req.date,
             "telegraph": req.telegraph,
             "status": status.typename
@@ -130,9 +127,9 @@ def update_request(request_id):
         # request_status_id = Column(Integer) - /request/<id>/request/
         # problem_id = Column(Integer) - выяснили (ниже)
         # TODO: rewrite problem
-        # if "problem_type" in args:
-        #     problem = db.session.query(ProblemType).\
-        #         filter(ProblemType.text == args["problem_type"]).first()
+        # if "problem" in args:
+        #     problem = db.session.query(Problem).\
+        #         filter(Problem.text == args["problem_type"]).first()
         #     if not problem:
         #         return error("Undefined problem type")
         #     problem_id = problem.id
@@ -197,7 +194,7 @@ def action_request(request_id):
 
 
 @bots.route("/get/problemtype/list", methods=["POST"])
-def get_problem_list():
+def get_problemtype_list():
     db = current_app.config["database"]
     problems = db.session.query(ProblemType)
     resp = []
@@ -206,13 +203,17 @@ def get_problem_list():
     return ok(resp)
 
 
-@bots.route("/get/problem/<int:type>/list", methods=["POST"])
-def get_problem_list(type):
+@bots.route("/get/problem/list", methods=["POST"])
+def get_problem_list():
+    form = request.form
+    print(form)
+    problem_type = form["problemtype"]
     db = current_app.config["database"]
-    problems = db.session.query(Problem).\
-        filter(Problem.problem_type_id == type)
+    problems = db.session.query(Problem, ProblemType).\
+        join(ProblemType, Problem.problem_type_id == ProblemType.id).\
+        filter(ProblemType.text == problem_type)
     resp = []
-    for problem in problems:
+    for problem, _ in problems:
         resp.append(problem.text)
     return ok(resp)
 
@@ -225,16 +226,26 @@ def get_captcha_transcript(transcript):
     return ok()
 
 
-@bots.route("", methods=["GET", "POST"])
-def test():
+@bots.route("/test/<int:problem_id>", methods=["GET", "POST"])
+def test(problem_id):
+    print("/test")
     # Уфа, наличия грязи, мусора на проезжей части
     db = current_app.config["database"]
     problem = db.session.query(Problem).\
-        filter(Problem.id == 2).first()
+        filter(Problem.id == problem_id).first()
+    print("Got problem")
     complaint = Complaint(4, problem)
     complaint.continue_init()
-    complaint.compile()
+    print("Complaint saved")
+    data = complaint.compile()
+    print("Complaint generated")
+    return ok(data)
+
+
+@bots.route("/ping", methods=["GET", "POST", "PUT", "DELETE"])
+def ping():
     return ok()
+
 
 
 @bots.errorhandler(404)

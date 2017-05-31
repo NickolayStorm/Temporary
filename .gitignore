@@ -4,3 +4,4 @@ Server/__pycache__/*
 Server/api/__pycache__/*
 Server/database/__pycache__/*
 Server/post/__pycache__/*
+Server/GenStatement/__pycache__/*
