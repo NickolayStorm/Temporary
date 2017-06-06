@@ -1,5 +1,5 @@
 import logging
-
+import threading
 from datetime import datetime
 from flask import current_app, Blueprint, request
 from sqlalchemy.orm import Load
@@ -7,7 +7,7 @@ from Server.api.orm import User, Request, \
     RequestStatus, ProblemType, Problem
 from geoalchemy2.elements import WKTElement
 from Server.api.view import ok, error
-# from Server.post import post
+from Server.post import post
 from Server.AppealScripts.create_appeal import create_appeal
 
 from Server.GenStatement.find_data import Complaint
@@ -17,29 +17,26 @@ bots = Blueprint('bot', __name__)
 
 @bots.route('/create/user', methods=['POST'])
 def create_user():
-    logging.error("/create/user")
+    logging.info("/create/user")
     db = current_app.config["database"]
     user = User()
     db.session.add(user)
     db.session.commit()
     db.session.refresh(user)
-    logging.error("refreshed")
-    logging.error("Created user id(%s)" % user.id)
-    # email, pas = post.create_mailbox(user.id)
-    # user.email = email
-    # user.password = pas
-    # print("mailbox created")
+    logging.info("Created user id(%s)" % user.id)
+    email, pas = post.create_mailbox(user.id)
+    user.email = email
+    user.password = pas
     db.session.commit()
     dct = {
         "id": user.id
     }
-    logging.error("commited")
     return ok(dct)
 
 
 @bots.route('/get/user/<id>', methods=['POST'])
 def get_user(id):
-    # logging.error("")
+    # logging.info("")
     db = current_app.config["database"]
     query = db.session.query(User).\
         filter(User.id == id)
@@ -62,7 +59,7 @@ def change_user_firstname(user_id):
     db = current_app.config["database"]
     user = db.session.query(User).filter(User.id == user_id).first()
     if user:
-        data = request.form
+        data = request.get_json()
         user.name = data["firstname"]
         user.surname = data["name"]
         user.patronymic = data["patronymic"]
@@ -122,7 +119,7 @@ def update_request(request_id):
     req = db.session.query(Request).filter(Request.id == request_id).first()
     if req:
         changes = False
-        args = request.form  # get_json()
+        args = request.get_json()
         if args:
             if "problem" in args:
                 changes = True
@@ -160,7 +157,9 @@ def update_request(request_id):
 # -H "Content-Type: application/json" -d @test.json
 @bots.route("/request/<int:request_id>/request/", methods=["POST"])
 def action_request(request_id):
+    logging.info("Here")
     form = request.get_json()
+    logging.error(form)
     db = current_app.config["database"]
     req = db.session.query(Request).filter(Request.id == request_id).first()
     if req:
@@ -190,12 +189,13 @@ def action_request(request_id):
                 }
             })
         else:
-            if 'captcha_word' in form and 'captcha_code' in form:
+            if form and 'captcha_word' in form and 'captcha_code' in form:
                 problem = db.session.query(Problem).\
                     filter(Problem.id == req.problem_id).first()
-                complaint = Complaint(request_id, problem)
+                complaint = Complaint(req, problem)
                 complaint.continue_init()
                 data = complaint.get_data()
+                print(data["problem"])
                 # TODO: compile data with coords etc -> text
                 text = ''
                 # TODO: Telegrapher -> telegraph
@@ -219,7 +219,7 @@ def action_request(request_id):
             else:
                 problem = db.session.query(Problem). \
                     filter(Problem.id == req.problem_id).filter()
-                complaint = Complaint(request_id, problem)
+                complaint = Complaint(req, problem)
                 appeal = create_appeal(complaint.procuracy.id)
                 captcha = appeal.captcha()
                 return ok({'captcha': captcha})
@@ -238,9 +238,9 @@ def get_problemtype_list():
 
 @bots.route("/get/problem/list", methods=["POST"])
 def get_problem_list():
-    form = request.form  # get_json()
-    logging.error("/get/problem/list/")
-    logging.error("It is received data: ".format(form))
+    form = request.get_json()
+    logging.info("/get/problem/list/")
+    logging.info("It is received data: ".format(form))
     if form:
         if 'problemtype' in form:
             problem_type = form["problemtype"]
@@ -257,17 +257,17 @@ def get_problem_list():
 
 @bots.route("/test/<int:problem_id>", methods=["GET", "POST"])
 def test(problem_id):
-    logging.error("/test")
+    logging.info("/test")
     # Уфа, наличия грязи, мусора на проезжей части
     db = current_app.config["database"]
     problem = db.session.query(Problem).\
         filter(Problem.id == problem_id).first()
-    logging.error("Got problem")
+    logging.info("Got problem")
     complaint = Complaint(4, problem)
     complaint.continue_init()
-    logging.error("Complaint saved")
+    logging.info("Complaint saved")
     data = complaint.get_data()
-    logging.error("Complaint generated")
+    logging.info("Complaint generated")
     return ok(data)
 
 

@@ -10,6 +10,7 @@ setup(
         'flask-sqlalchemy',
         'requests',
         'lxml',
-        'geoalchemy2'
+        'geoalchemy2',
+        'shapely',
     ],
 )

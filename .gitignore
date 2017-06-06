@@ -1,4 +1,5 @@
 .idea
+pdf/*
 __pycache__/*
 Server/__pycache__/*
 Server/api/__pycache__/*

@@ -6,10 +6,6 @@ app = Flask(__name__)
 
 db_url = 'postgresql://active_bash_user:12345@13.95.149.226:5432/active_bash_db'
 
-# engine = create_engine(db_url, echo=False)
-# Session = sessionmaker(bind=engine)
-# session = Session()
-
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 db = SQLAlchemy(app)
 app.config['database'] = db

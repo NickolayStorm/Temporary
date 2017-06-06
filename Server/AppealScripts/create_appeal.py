@@ -11,7 +11,7 @@ class AppealBashkortProcuracy():
         captcha_img = page.xpath(xpath_captcha_img)[0].get('src')
         captcha_code = page.xpath(xpath_captcha_code)[0].get('value')
         return {
-            'url': captcha_img,
+            'url': 'http://bashprok.ru' + captcha_img,
             'code': captcha_code
         }
 

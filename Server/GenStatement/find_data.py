@@ -14,6 +14,8 @@ from sqlalchemy.sql.expression import or_
 from sqlalchemy import desc
 
 from flask import render_template_string
+from shapely import wkb
+import datetime
 
 
 class Complaint():
@@ -37,7 +39,9 @@ class Complaint():
     municipal_procuracy = None
     site = None
 
-    def __init__(self, request_id, problem):
+    def __init__(self, request, problem):
+        self.request = request
+        request_id = request.id
         self.problem = problem
         db = current_app.config["database"]
         areas = Complaint.find_areas(db.session, request_id)
@@ -97,6 +101,13 @@ class Complaint():
         offence_petitions = list(map(lambda o: o.text, self.offence_petitions))
         offences = list(map(lambda o: o.text, self.offences))
         problem = self.problem.text
+        point = wkb.loads(bytes(self.request.coordinate.data))
+        coords = '(%f, %f)' % (point.x, point.y)
+        # TODO: date still empty
+        date = datetime.datetime.today().date().strftime("%d.%m.%Y")
+        problem = render_template_string(problem,
+                                         coord=coords,
+                                         date=date)
         data = {
             "offences": offences,
             "problem": problem,
