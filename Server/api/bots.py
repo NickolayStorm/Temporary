@@ -3,6 +3,8 @@ import threading
 from datetime import datetime
 from flask import current_app, Blueprint, request
 from sqlalchemy.orm import Load
+
+from Server.GenStatement import make_pdf
 from Server.api.orm import User, Request, \
     RequestStatus, ProblemType, Problem
 from geoalchemy2.elements import WKTElement
@@ -167,13 +169,12 @@ def action_request(request_id):
             return error("Request is already sent")
         # Проверить, что все поля заполнены
         empty_req_fields = []
-        # TODO: TypeError("Boolean value of this clause is not defined")
-        # if req.coordinate == None:
-        #     empty_req_fields.append("coordinate")
-        # if not req.problem_id:
-        #     empty_req_fields.append("problem")
-        # if not req.photo_path:
-        #     empty_req_fields.append("photo")
+        if req.coordinate is None:
+            empty_req_fields.append("coordinate")
+        if not req.problem_id:
+            empty_req_fields.append("problem")
+        if not req.photo_path:
+            empty_req_fields.append("photo")
         user = db.session.query(User).\
                     filter(User.id == req.user_id).first()
         empty_user_fields = []
@@ -196,14 +197,6 @@ def action_request(request_id):
                 complaint.continue_init()
                 data = complaint.get_data()
                 print(data["problem"])
-                # TODO: compile data with coords etc -> text
-                text = ''
-                # TODO: Telegrapher -> telegraph
-                telegraph = ''
-                req.telegraph = telegraph
-                req.area_id = complaint.area.id
-                # TODO: req.request_status_id
-                # TODO: coordinates to appeal
                 appeal_data = {
                     "firstname": user.name,
                     "lastname": user.surname,
@@ -212,7 +205,14 @@ def action_request(request_id):
                     "mailto": user.email,
                 }
                 appeal = create_appeal(complaint.procuracy.id)
-                appeal.send_appeal(appeal_data)
+                sendable = appeal.send_appeal(appeal_data)
+                make_pdf.make_pdf(data, sendable)
+                text = ''
+                # TODO: Telegrapher -> telegraph
+                telegraph = ''
+                req.telegraph = telegraph
+                req.area_id = complaint.area.id
+                # TODO: req.request_status_id
                 req.date = datetime.now().date()
                 db.session.commit()
                 return ok()

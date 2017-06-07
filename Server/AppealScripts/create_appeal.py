@@ -15,29 +15,31 @@ class AppealBashkortProcuracy():
             'code': captcha_code
         }
 
+    # Should return callable
     @staticmethod
-    def send_appeal(data):
-        # TODO: where is captcha data?
-        pass
-        # form_data = {
-        #     "go": "",
-        #     "try": "",
-        #     "name": data["firstname"],
-        #     "lastname": data["lastname"],
-        #     "secondname": data["pathronymic"],
-        #     "email": data["email"],
-        #     "phone": "",
-        #     "addr": "",
-        #     "mailto": data["email"],
-        #     "MAX_FILE_SIZE": 999999999,
-        #     "message": ""
-        # }
-        # form_file = {
-        #     "userfile[]": open(data["filename"], 'rb')
-        # }
-        # r = requests.post(url='http://bashprok.ru/include/support_form_handler.php',
-        #                   data=form_data,
-        #                   files=form_file)
+    def send_appeal(data) -> callable:
+        def send_data(pdf_path):
+            form_data = {
+                "go": "",
+                "try": "",
+                "name": data["firstname"],
+                "lastname": data["lastname"],
+                "secondname": data["pathronymic"],
+                "email": data["email"],
+                "phone": "",
+                "addr": "",
+                "mailto": data["email"],
+                "MAX_FILE_SIZE": 999999999,
+                "message": ""
+            }
+            with open(pdf_path, 'rb') as f:
+                form_file = {
+                    "userfile[]": f
+                }
+                # r = requests.post(url='http://bashprok.ru/include/support_form_handler.php',
+                #                   data=form_data,
+                #                   files=form_file)
+        return send_data
 
 
 # It is an appeal factory

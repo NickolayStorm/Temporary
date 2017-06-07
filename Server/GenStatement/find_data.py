@@ -13,9 +13,12 @@ from sqlalchemy.orm import Load
 from sqlalchemy.sql.expression import or_
 from sqlalchemy import desc
 
-from flask import render_template_string
+# from flask import render_template_string
+from jinja2 import Template
 from shapely import wkb
 import datetime
+
+from Server.api.orm import User
 
 
 class Complaint():
@@ -105,21 +108,42 @@ class Complaint():
         coords = '(%f, %f)' % (point.x, point.y)
         # TODO: date still empty
         date = datetime.datetime.today().date().strftime("%d.%m.%Y")
-        problem = render_template_string(problem,
-                                         coord=coords,
-                                         date=date)
+        templ = Template(problem)
+        problem = templ.render(coord=coords, date=date)
+        db = current_app.config["database"]
+        user = db.session.query(User).\
+            filter(User.id == self.request.user_id).first()
         data = {
+            "request_number": self.request.id,
+            "organization_name": self.procuracy.name_prok,
+            "site": self.procuracy.site,
+            "user_name": user.name,
+            "user_patronymic": user.patronymic,
+            "user_surname": user.surname,
+            "email": user.email,
+            "photo": self.request.photo_path,
             "offences": offences,
             "problem": problem,
-            "opinions":  opinions,
+            "opinions": opinions,
             "bases_of_excitation": bases_of_excitation,
             "offences_federal": offences_federal,
             "offences_municipal": offences_municipal,
             "bases_of_consideration": bases_of_consideration,
             "offence_petitions": offence_petitions,
-            "problem_petitions": problem_petitions
+            "problem_petitions": problem_petitions,
+            "order": [
+                "offences",
+                "problem",
+                "opinion",
+                "bases_of_excitation",
+                "offences_federal",
+                "offences_municipal",
+                "bases_of_consideration",
+                "offence_petitions",
+                "problem_petitions"
+            ]
         }
-        return(data)
+        return data
 
     @staticmethod
     def find_areas(session, request_id):
