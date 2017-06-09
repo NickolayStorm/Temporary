@@ -1,5 +1,4 @@
 import logging
-import threading
 from datetime import datetime
 from flask import current_app, Blueprint, request
 from sqlalchemy.orm import Load
@@ -73,8 +72,8 @@ def change_user_firstname(user_id):
 @bots.route("/get/request/user/<int:user_id>/list/", methods=["POST"])
 def get_list_requests(user_id):
     db = current_app.config["database"]
-    # TODO: join Request status
-    reqs = db.session.query(Request).\
+    reqs = db.session.query(Request, RequestStatus).\
+        join(RequestStatus, Request.request_status_id == RequestStatus.id). \
         filter(Request.user_id == user_id). \
         filter(Request.date.isnot(None)). \
         options(
@@ -82,16 +81,18 @@ def get_list_requests(user_id):
                 "id",
                 "date",
                 "telegraph"
+            ),
+            Load(RequestStatus).load_only(
+                "text"
             )
-            # Load(RequestStatus).load_only(
-            #     "text"
-            # )
         )
     res = []
-    for req in reqs:
+    for req, status in reqs:
         dct = {
+            "id": req.id,
             "date": req.date,
-            "telegraph": req.telegraph
+            "telegraph": req.telegraph,
+            "status": status.text
         }
         res.append(dct)
     return ok(res)
@@ -212,7 +213,8 @@ def action_request(request_id):
                 telegraph = ''
                 req.telegraph = telegraph
                 req.area_id = complaint.area.id
-                # TODO: req.request_status_id
+                # TODO: С реквест id могут быть проблемы (т.к id это sequence)
+                req.request_status_id = 2
                 req.date = datetime.now().date()
                 db.session.commit()
                 return ok()
@@ -255,15 +257,17 @@ def get_problem_list():
     return error("Empty problem")
 
 
-@bots.route("/test/<int:problem_id>", methods=["GET", "POST"])
-def test(problem_id):
+@bots.route("/test/<int:problem_id>/<int:request_id>", methods=["GET", "POST"])
+def test(problem_id, request_id):
     logging.info("/test")
     # Уфа, наличия грязи, мусора на проезжей части
     db = current_app.config["database"]
     problem = db.session.query(Problem).\
         filter(Problem.id == problem_id).first()
+    req = db.session.query(Request). \
+        filter(Request.id == request_id).first()
     logging.info("Got problem")
-    complaint = Complaint(4, problem)
+    complaint = Complaint(req, problem)
     complaint.continue_init()
     logging.info("Complaint saved")
     data = complaint.get_data()
