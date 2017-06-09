@@ -2,7 +2,7 @@ import lxml.html as html
 import requests
 
 
-class AppealBashkortProcuracy():
+class AppealBashkortProcuracy:
     @staticmethod
     def captcha():
         page = html.parse('http://bashprok.ru/internet_reception/')
@@ -17,7 +17,7 @@ class AppealBashkortProcuracy():
 
     # Should return callable
     @staticmethod
-    def send_appeal(data) -> callable:
+    def send_appeal(data: dict) -> callable:
         def send_data(pdf_path):
             form_data = {
                 "go": "",

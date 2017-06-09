@@ -106,8 +106,8 @@ class Complaint():
         coords = '(%f, %f)' % (point.x, point.y)
         # TODO: date still empty
         date = datetime.datetime.today().date().strftime("%d.%m.%Y")
-        templ = Template(problem)
-        problem = templ.render(coord=coords, date=date)
+        template = Template(problem)
+        problem = template.render(coord=coords, date=date)
         db = current_app.config["database"]
         user = db.session.query(User).\
             filter(User.id == self.request.user_id).first()

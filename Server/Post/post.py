@@ -6,7 +6,8 @@ import logging
 from Server.api.orm import User
 from flask import current_app
 
-def create_mailbox(user_id):  #, address, session):
+
+def create_mailbox(user_id: int) -> (str, str):  #, address, session):
     time.sleep(2)
     return "mylogin", "mypassword"
     # for i in range(5):

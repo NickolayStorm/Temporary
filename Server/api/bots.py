@@ -1,16 +1,17 @@
 import logging
 from datetime import datetime
 from flask import current_app, Blueprint, request
-from sqlalchemy.orm import Load
-from Server import GenStatement
-from Server.api.orm import User, Request, \
+from .view import ok, error
+from .orm import User, Request, \
     RequestStatus, ProblemType, Problem
+from sqlalchemy.orm import Load
 from geoalchemy2.elements import WKTElement
-from Server.api.view import ok, error
-from Server.post import post
-from Server.AppealScripts.create_appeal import create_appeal
 
-from Server.GenStatement.find_data import Complaint
+from Server import GenStatement
+from Server.GenStatement import Complaint
+import Server.Post as Post
+from Server.AppealScripts import create_appeal
+
 
 bots = Blueprint('bot', __name__)
 
@@ -24,7 +25,7 @@ def create_user():
     db.session.commit()
     db.session.refresh(user)
     logging.info("Created user id(%s)" % user.id)
-    email, pas = post.create_mailbox(user.id)
+    email, pas = Post.create_mailbox(user.id)
     user.email = email
     user.password = pas
     db.session.commit()
@@ -35,11 +36,11 @@ def create_user():
 
 
 @bots.route('/get/user/<id>', methods=['POST'])
-def get_user(id):
+def get_user(user_id):
     # logging.info("")
     db = current_app.config["database"]
     query = db.session.query(User).\
-        filter(User.id == id)
+        filter(User.id == user_id)
     user = query.first()
     if user:
         dct = {
@@ -50,7 +51,7 @@ def get_user(id):
         }
         return ok(dct)
     else:
-        return error("User id %s not found" % id)
+        return error("User id %s not found" % user_id)
 
 
 @bots.route("/user/<int:user_id>/fnp/",

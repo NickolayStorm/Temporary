@@ -1,4 +1,4 @@
-def create_preview(data, request_number):
+def create_preview(data: dict, request_number: int):
     text = '<html><head><meta charset="utf-8">'
     text += '<title>Обращение №%s</title>' % request_number
     text += '</head><body>'
