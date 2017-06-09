@@ -1,3 +1,4 @@
+import logging
 from flask import current_app
 from geoalchemy2.functions import ST_Contains
 from Server.GenStatement.orm import Request, Area,\
@@ -23,7 +24,7 @@ from Server.api.orm import User
 
 class Complaint():
     class AreaNotFound(Exception):
-        def __init__(self, message, errors):
+        def __init__(self, message, errors=None):
             super().__init__(message)
             self.errors = errors
 
@@ -39,7 +40,6 @@ class Complaint():
     area = None
     procuracy = None
     municipal_area = None
-    municipal_procuracy = None
     site = None
 
     def __init__(self, request, problem):
@@ -48,14 +48,12 @@ class Complaint():
         self.problem = problem
         db = current_app.config["database"]
         areas = Complaint.find_areas(db.session, request_id)
-        # TODO: handle if area is None
         data = Complaint.find_best_area(db.session, areas)
         if not data:
             raise Complaint.AreaNotFound("Bad coordinate region")
         self.area = data["area"]
         self.procuracy = data["procuracy"]
         self.municipal_area = data["municipal_area"]
-        self.municipal_procuracy = data["municipal_procuracy"]
 
     def continue_init(self):
         db = current_app.config["database"]
@@ -67,13 +65,13 @@ class Complaint():
             problem_id,
             org_type
         )
-        if self.municipal_procuracy:
+        if self.municipal_area:
             self.offences_municipal = Complaint.find_municipal_offences(
                 db.session,
                 problem_id,
-                self.municipal_procuracy.organisation_type_id
+                self.procuracy.organisation_type_id,
+                self.municipal_area.id
             )
-        # TODO: check join (maybe wrong)
         resp = db.session.query(ProblemOffence, Offence). \
             join(Offence, ProblemOffence.offence_id == Offence.id). \
             filter(ProblemOffence.problem_id == problem_id)
@@ -157,32 +155,34 @@ class Complaint():
     @staticmethod
     def find_best_area(session, areas):
         # TODO: Депутаты тоже
-        resp = session.query(Area, Procuracy, AdminLevel). \
+        # TODO: написать в адин запрос (с FULL JOIN)
+        resp = session.query(Area, Procuracy). \
             filter(or_(Area.id == a.id for a in areas)). \
-            join(Procuracy, Area.id == Procuracy.area_id).\
-            join(AdminLevel, Area.admin_level_id == AdminLevel.id).\
+            join(Procuracy, Area.id == Procuracy.area_id). \
+            join(AdminLevel, Area.admin_level_id == AdminLevel.id). \
             order_by(desc(AdminLevel.number))
         # Нам нужно вернуть Area с миаксимальным административным уровнем
         # А так же, если это возможно, вернуть Area муниципального уровня
-        if resp.first():
-            area, procuracy, _ = resp[0]
-            municipal_area = None
-            municipal_procuracy = None
-            for a, p, lvl in resp:
-                if lvl.number == 6:
-                    municipal_area = a
-                    municipal_procuracy = p
-            return {
-                "area": area,
-                "procuracy": procuracy,
-                "municipal_area": municipal_area,
-                "municipal_procuracy": municipal_procuracy
-            }
-        else:
+        try:
+            area, procuracy = resp[0]
+        except IndexError:
+            logging.error("Cannot find area for this coordinate")
             return None
-        # responce = {
-        #     "area":
-        # }
+
+        resp = session.query(Area, AdminLevel). \
+            filter(or_(Area.id == a.id for a in areas)). \
+            join(AdminLevel, Area.admin_level_id == AdminLevel.id). \
+            filter(AdminLevel.number == 6)
+        municipal_area = None
+        for a, lvl in resp:
+            print("Area level:", lvl.number)
+            municipal_area = a
+        return {
+            "area": area,
+            "procuracy": procuracy,
+            "municipal_area": municipal_area
+        }
+
 
     @staticmethod
     def find_federal_offences(session, problem_id, org_type):

@@ -118,7 +118,7 @@ class NarushFederalNPA(Base):
 
 
 class NarushMunicNPA(Base):
-    __tablename__ = "narushmunicnpa"
+    __tablename__ = "municipal_offence"
     id = Column(INTEGER, nullable=True, autoincrement=True, primary_key=True)
     name = Column(TEXT, nullable=True)
     text = Column(TEXT, nullable=True)
@@ -204,7 +204,7 @@ class FedOffenceOrgType(Base):
 
 
 class MunicipalOffenceOrgType(Base):
-    __tablename__ = 'municipal_offence_org_type'
+    __tablename__ = 'mun_offence_org_type'
     municipal_offence_id = Column(INTEGER, ForeignKey("narushmunicnpa.id"), primary_key=True)
     organisationtype_id = Column(INTEGER, ForeignKey("organisationtype.id"), primary_key=True)
 
