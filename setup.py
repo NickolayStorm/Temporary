@@ -12,5 +12,6 @@ setup(
         'lxml',
         'geoalchemy2',
         'shapely',
+        'telegraph'
     ],
 )

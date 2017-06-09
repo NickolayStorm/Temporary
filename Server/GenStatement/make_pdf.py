@@ -18,6 +18,8 @@ def _as_itemize(lst: list):
 def _make_text(data: dict):
     # TODO: picture
     # TODO: Считывать порядок из data["order"]
+    if "offences" in data:
+        data["offence"] = data["offences"][0]
     if "offence_petitions" in data:
         pp = data["offence_petitions"]
         if isinstance(pp, list):
@@ -119,15 +121,16 @@ def _make_pdf(data: dict, callback: callable):
     print(work_dir)
     with open(tex_path, 'w') as f:
         f.write(template)
-    args = "pdflatex appeal.tex"
+    args = ['pdflatex', 'appeal.tex']
     print(args)
-    subprocess = sp.Popen(args,
-                          cwd=work_dir)
     try:
-        subprocess.wait(1)
-        return callback(os.path.join(work_dir, 'appeal.pdf'))
-    except TimeoutError:
-        logging.error("Cannot create request %s" % data["request_number"])
+        subprocess = sp.Popen(args,
+                          cwd=work_dir)
+        try:
+            subprocess.wait(1)
+            return callback(os.path.join(work_dir, 'appeal.pdf'))
+        except TimeoutError:
+            logging.error("Cannot create request %s" % data["request_number"])
         return False
     except FileNotFoundError:
         logging.error("Cannot create request %s:"

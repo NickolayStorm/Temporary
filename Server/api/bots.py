@@ -2,8 +2,7 @@ import logging
 from datetime import datetime
 from flask import current_app, Blueprint, request
 from sqlalchemy.orm import Load
-
-from Server.GenStatement import make_pdf
+from Server import GenStatement
 from Server.api.orm import User, Request, \
     RequestStatus, ProblemType, Problem
 from geoalchemy2.elements import WKTElement
@@ -150,6 +149,7 @@ def update_request(request_id):
                 # TODO: how?
                 pass
         if changes:
+            req.date = datetime.now().date()
             db.session.commit()
             return ok()
         return error("Nothing to update")
@@ -160,7 +160,6 @@ def update_request(request_id):
 # -H "Content-Type: application/json" -d @test.json
 @bots.route("/request/<int:request_id>/request/", methods=["POST"])
 def action_request(request_id):
-    logging.info("Here")
     form = request.get_json()
     logging.error(form)
     db = current_app.config["database"]
@@ -168,14 +167,68 @@ def action_request(request_id):
     if req:
         if req.date:
             return error("Request is already sent")
+        empty_req_fields = []
+        if req.coordinate is None:
+            empty_req_fields.append("coordinate")
+        if not req.problem_id:
+            empty_req_fields.append("problem")
+        user = db.session.query(User).\
+            filter(User.id == req.user_id).first()
+        empty_user_fields = []
+        if not user.name:
+            empty_user_fields.append("firstname")
+        if not user.surname:
+            empty_user_fields.append("surname")
+        if empty_req_fields or empty_user_fields:
+            return error({
+                "blank":{
+                    "user": empty_user_fields,
+                    "request": empty_req_fields
+                }
+            })
+        else:
+            problem = db.session.query(Problem). \
+                filter(Problem.id == req.problem_id).first()
+            complaint = Complaint(req, problem)
+            if form and 'captcha_word' in form and 'captcha_code' in form:
+                complaint.continue_init()
+                data = complaint.get_data()
+                appeal_data = {
+                    "firstname": user.name,
+                    "lastname": user.surname,
+                    "pathronymic": user.patronymic,
+                    "email": user.email,
+                    "mailto": user.email,
+                }
+                appeal = create_appeal(complaint.procuracy.id)
+                sendable = appeal.send_appeal(appeal_data)
+                GenStatement.make_pdf(data, sendable)
+                req.area_id = complaint.area.id
+                # TODO: С реквест id могут быть проблемы (т.к id это sequence)
+                req.request_status_id = 2
+                req.date = datetime.now().date()
+                db.session.commit()
+                return ok()
+            else:
+                appeal = create_appeal(complaint.procuracy.id)
+                captcha = appeal.captcha()
+                return ok({'captcha': captcha})
+    return error("Request %s does not exist" % request_id)
+
+
+@bots.route("/request/<int:request_id>/link/", methods=["POST"])
+def get_telegrapher_link(request_id):
+    form = request.get_json()
+    logging.error(form)
+    db = current_app.config["database"]
+    req = db.session.query(Request).filter(Request.id == request_id).first()
+    if req:
         # Проверить, что все поля заполнены
         empty_req_fields = []
         if req.coordinate is None:
             empty_req_fields.append("coordinate")
         if not req.problem_id:
             empty_req_fields.append("problem")
-        if not req.photo_path:
-            empty_req_fields.append("photo")
         user = db.session.query(User).\
                     filter(User.id == req.user_id).first()
         empty_user_fields = []
@@ -191,41 +244,19 @@ def action_request(request_id):
                 }
             })
         else:
-            if form and 'captcha_word' in form and 'captcha_code' in form:
-                problem = db.session.query(Problem).\
-                    filter(Problem.id == req.problem_id).first()
-                complaint = Complaint(req, problem)
-                complaint.continue_init()
-                data = complaint.get_data()
-                print(data["problem"])
-                appeal_data = {
-                    "firstname": user.name,
-                    "lastname": user.surname,
-                    "pathronymic": user.patronymic,
-                    "email": user.email,
-                    "mailto": user.email,
-                }
-                appeal = create_appeal(complaint.procuracy.id)
-                sendable = appeal.send_appeal(appeal_data)
-                make_pdf.make_pdf(data, sendable)
-                text = ''
-                # TODO: Telegrapher -> telegraph
-                telegraph = ''
-                req.telegraph = telegraph
-                req.area_id = complaint.area.id
-                # TODO: С реквест id могут быть проблемы (т.к id это sequence)
-                req.request_status_id = 2
-                req.date = datetime.now().date()
-                db.session.commit()
-                return ok()
-            else:
-                problem = db.session.query(Problem). \
-                    filter(Problem.id == req.problem_id).filter()
-                complaint = Complaint(req, problem)
-                appeal = create_appeal(complaint.procuracy.id)
-                captcha = appeal.captcha()
-                return ok({'captcha': captcha})
+            problem = db.session.query(Problem).\
+                filter(Problem.id == req.problem_id).first()
+            complaint = Complaint(req, problem)
+            complaint.continue_init()
+            data = complaint.get_data()
+            link = GenStatement.create_preview(data, req.id)
+            req.telegraph = link
+            # TODO: С реквест id могут быть проблемы (т.к id это sequence)
+            req.request_status_id = 1
+            db.session.commit()
+            return ok({"link": link})
     return error("Request %s does not exist" % request_id)
+
 
 
 @bots.route("/get/problemtype/list", methods=["POST"])

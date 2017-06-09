@@ -7,6 +7,7 @@ app = Flask(__name__)
 db_url = 'postgresql://active_bash_user:12345@13.95.149.226:5432/active_bash_db'
 
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url
+app.config['SQLALCHEMY_POOL_TIMEOUT'] = 2
 db = SQLAlchemy(app)
 app.config['database'] = db
 
